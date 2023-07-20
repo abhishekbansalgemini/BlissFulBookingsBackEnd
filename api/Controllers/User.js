@@ -3,10 +3,13 @@ const bcrypt = require("bcryptjs");
 const UserModel = require("../models/User.js");
 const PlaceModel = require("../models/Place.js");
 const BookingModel = require("../models/Booking.js");
+const nodemailer = require("nodemailer");
 require("dotenv").config();
 
 const jwtSecret = process.env.jwtSecret;
 const bcryptSalt = bcrypt.genSaltSync(10);
+
+var passwordotp = 0;
 
 const register = async (req, res) => {
   const { name, email, password } = req.body;
@@ -207,6 +210,75 @@ const updateUserBySuperAdmin = async (req, res) => {
     }
   }
 };
+
+const sendOTP = async (email, otp) => {
+  const transporter = nodemailer.createTransport({
+    host: "sandbox.smtp.mailtrap.io",
+    port: 587,
+    auth: {
+      user: "4927996cf3a741",
+      pass: "c38ee4f30d65d2",
+    },
+  });
+
+  const mailOptions = {
+    from: "Abhishek Bansal<abhishek.bansal_cs20@gla.ac.in> ",
+    to: email,
+    subject: "Password Reset OTP",
+    text: `Your OTP for password reset is: ${otp}`,
+  };
+
+  await transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      console.log(error);
+    } else {
+      console.log("Email sent: " + info.response);
+    }
+  });
+};
+
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const findUser = await UserModel.findOne({ email: email });
+
+    if (!findUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    console.log(findUser);
+    passwordotp = Math.floor(100000 + Math.random() * 900000);
+
+    console.log(findUser);
+
+    await sendOTP(email, passwordotp);
+    res.json({ message: "OTP sent to your email" });
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    const findUser = await UserModel.findOne({ email });
+    console.log(passwordotp);
+    console.log(otp);
+    if (!findUser) {
+      return res.status(400).json({ error: "User not found" });
+    }
+    if (!findUser || passwordotp != otp) {
+      return res.status(400).json({ error: "Invalid OTP" });
+    }
+
+    // Update password and clear OTP
+    findUser.password = await bcrypt.hash(newPassword, 10);
+    await findUser.save();
+
+    res.json({ message: "Password reset successful" });
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+};
 module.exports = {
   register,
   login,
@@ -218,4 +290,6 @@ module.exports = {
   getAllUsers,
   deleteUser,
   updateUserBySuperAdmin,
+  forgotPassword,
+  resetPassword,
 };
