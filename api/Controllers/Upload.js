@@ -23,16 +23,21 @@ const uploadByLink = async (req, res) => {
 };
 
 const uploadFromLocal = (req, res) => {
-  const uploadedFiles = [];
-  for (let i = 0; i < req.files.length; i++) {
-    const { path, originalname } = req.files[i];
-    const parts = originalname.split(".");
-    const extension = parts[parts.length - 1];
-    const newPath = path + "." + extension;
-    fs.renameSync(path, newPath);
-    uploadedFiles.push(newPath.replace("uploads\\", ""));
+  try {
+    const uploadedFiles = [];
+    for (let i = 0; i < req.files.length; i++) {
+      const { path, originalname } = req.files[i];
+      const parts = originalname.split(".");
+      const extension = parts[parts.length - 1];
+      const newPath = path + "." + extension;
+      fs.renameSync(path, newPath);
+      uploadedFiles.push(newPath.replace("uploads\\", ""));
+    }
+    res.json(uploadedFiles);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to upload images" });
   }
-  res.json(uploadedFiles);
 };
 
 module.exports = { uploadByLink, uploadFromLocal };

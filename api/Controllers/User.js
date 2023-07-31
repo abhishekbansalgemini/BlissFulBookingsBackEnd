@@ -31,7 +31,8 @@ const register = async (req, res) => {
 };
 
 const login = async (req, res) => {
-  const { email, password } = req.body;
+  try{
+    const { email, password } = req.body;
   const user = await UserModel.findOne({ email: email });
   if (user) {
     const passOk = bcrypt.compareSync(password, user.password);
@@ -58,10 +59,15 @@ const login = async (req, res) => {
   } else {
     res.status(422).json("Not found");
   }
+  }
+  catch (err) {
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 };
 
 const updatePassword = async (req, res) => {
-  const { email, newPassword } = req.body;
+  try{
+    const { email, newPassword } = req.body;
   const user = await UserModel.findOne({ email: email });
   if (user) {
     user.set({
@@ -89,10 +95,15 @@ const updatePassword = async (req, res) => {
   } else {
     res.status(422).json("Not found");
   }
+  }
+  catch (err) {
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 };
 
 const profile = (req, res) => {
-  const { token } = req.cookies;
+  try{
+    const { token } = req.cookies;
   if (token) {
     jwt.verify(token, jwtSecret, {}, async (err, user) => {
       if (err) throw err;
@@ -103,14 +114,23 @@ const profile = (req, res) => {
   } else {
     res.json(null);
   }
+  } catch (err) {
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 };
 
 const logout = (req, res) => {
+ try{
   res.cookie("token", "").json(true);
+ }
+ catch (err) {
+  res.status(500).json({ error: "Internal Server Error" });
+}
 };
 
 const UpdateUser = async (req, res) => {
-  const { id, name, email } = req.body;
+  try{
+    const { id, name, email } = req.body;
   const checkExistingUser = await UserModel.findOne({ email: email });
   if (checkExistingUser && checkExistingUser?._id != id) {
     res.status(409).json("this mail id is already registered");
@@ -145,10 +165,15 @@ const UpdateUser = async (req, res) => {
       res.status(422).json("Not found");
     }
   }
+  }
+  catch (err) {
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 };
 
 const ChangeUserToAdmin = async (req, res) => {
-  const { id } = req.body;
+  try{
+    const { id } = req.body;
   const requiredUser = await UserModel.findOne({ _id: id });
   if (requiredUser) {
     requiredUser.set({
@@ -175,22 +200,36 @@ const ChangeUserToAdmin = async (req, res) => {
   } else {
     res.status(500).json("Not found");
   }
+  } catch (err) {
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 };
 
 const getAllUsers = async (req, res) => {
-  res.json(await UserModel.find());
+  try{
+    res.json(await UserModel.find());
+  }
+  catch (err) {
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 };
 
 const deleteUser = async (req, res) => {
-  const { id } = req.params;
+  try{
+    const { id } = req.params;
   const deletedUser = await UserModel.findByIdAndDelete(id);
   await BookingModel.deleteMany({ user: id });
   await PlaceModel.deleteMany({ owner: id });
   res.json(deletedUser);
+  }
+  catch (err) {
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 };
 
 const updateUserBySuperAdmin = async (req, res) => {
-  const { id, name, email } = req.body;
+  try{
+    const { id, name, email } = req.body;
   const checkExistingUser = await UserModel.findOne({ email: email });
   if (checkExistingUser && checkExistingUser?._id != id) {
     res.status(409).json("this mail id is already registered");
@@ -209,32 +248,40 @@ const updateUserBySuperAdmin = async (req, res) => {
       res.status(422).json("Not found");
     }
   }
+  }
+  catch (err) {
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 };
 
 const sendOTP = async (email, otp) => {
-  const transporter = nodemailer.createTransport({
-    host: "sandbox.smtp.mailtrap.io",
-    port: 587,
-    auth: {
-      user: "4927996cf3a741",
-      pass: "c38ee4f30d65d2",
-    },
-  });
-
-  const mailOptions = {
-    from: "Abhishek Bansal<abhishek.bansal_cs20@gla.ac.in> ",
-    to: email,
-    subject: "Password Reset OTP",
-    text: `Your OTP for password reset is: ${otp}`,
-  };
-
-  await transporter.sendMail(mailOptions, (error, info) => {
-    if (error) {
-      console.log(error);
-    } else {
-      console.log("Email sent: " + info.response);
-    }
-  });
+  try{
+    const transporter = nodemailer.createTransport({
+      host: "sandbox.smtp.mailtrap.io",
+      port: 587,
+      auth: {
+        user: "4927996cf3a741",
+        pass: "c38ee4f30d65d2",
+      },
+    });
+  
+    const mailOptions = {
+      from: "Abhishek Bansal<abhishek.bansal_cs20@gla.ac.in> ",
+      to: email,
+      subject: "Password Reset OTP",
+      text: `Your OTP for password reset is: ${otp}`,
+    };
+  
+    await transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.log(error);
+      } else {
+        console.log("Email sent: " + info.response);
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 };
 
 const forgotPassword = async (req, res) => {

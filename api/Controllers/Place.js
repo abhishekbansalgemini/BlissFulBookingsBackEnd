@@ -5,22 +5,22 @@ require("dotenv").config();
 
 const jwtSecret = process.env.jwtSecret;
 
-const addPlaces = (req, res) => {
-  const { token } = req.cookies;
-  const {
-    title,
-    address,
-    addedPhotos,
-    description,
-    perks,
-    extraInfo,
-    checkIn,
-    checkOut,
-    maxGuests,
-    price,
-  } = req.body;
-  jwt.verify(token, jwtSecret, {}, async (err, user) => {
-    if (err) throw err;
+const addPlaces = async (req, res) => {
+  try {
+    const { token } = req.cookies;
+    const {
+      title,
+      address,
+      addedPhotos,
+      description,
+      perks,
+      extraInfo,
+      checkIn,
+      checkOut,
+      maxGuests,
+      price,
+    } = req.body;
+    const user = jwt.verify(token, jwtSecret);
     const place = await PlaceModal.create({
       owner: user.id,
       title,
@@ -35,42 +35,58 @@ const addPlaces = (req, res) => {
       price,
     });
     res.json(place);
-  });
+  } catch (err) {
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 };
 
-const getUserPlaces = (req, res) => {
-  const { token } = req.cookies;
-  jwt.verify(token, jwtSecret, {}, async (err, user) => {
+const getUserPlaces = async (req, res) => {
+  try {
+    const { token } = req.cookies;
+    const user = jwt.verify(token, jwtSecret);
     const { id, isSuperAdmin } = user;
+    let places;
     if (isSuperAdmin) {
-      res.json(await PlaceModal.find());
+      places = await PlaceModal.find();
     } else {
-      res.json(await PlaceModal.find({ owner: id }));
+      places = await PlaceModal.find({ owner: id });
     }
-  });
+    res.json(places);
+  } catch (err) {
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 };
 
 const getParticularPlace = async (req, res) => {
-  const { id } = req.params;
-  res.json(await PlaceModal.findById(id));
+  try {
+    const { id } = req.params;
+    const place = await PlaceModal.findById(id);
+    if (!place) {
+      return res.status(404).json({ error: "Place not found" });
+    }
+    res.json(place);
+  } catch (err) {
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 };
 
 const updatePlace = async (req, res) => {
-  const { token } = req.cookies;
-  const {
-    id,
-    title,
-    address,
-    addedPhotos,
-    description,
-    perks,
-    extraInfo,
-    checkIn,
-    checkOut,
-    maxGuests,
-    price,
-  } = req.body;
-  jwt.verify(token, jwtSecret, {}, async (err, user) => {
+  try {
+    const { token } = req.cookies;
+    const {
+      id,
+      title,
+      address,
+      addedPhotos,
+      description,
+      perks,
+      extraInfo,
+      checkIn,
+      checkOut,
+      maxGuests,
+      price,
+    } = req.body;
+    const user = jwt.verify(token, jwtSecret);
     const place = await PlaceModal.findById(id);
     if (user.id === place?.owner.toString()) {
       place.set({
@@ -87,22 +103,35 @@ const updatePlace = async (req, res) => {
       });
       await place.save();
       res.json("ok");
+    } else {
+      res.status(403).json({ error: "Unauthorized" });
     }
-  });
+  } catch (err) {
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 };
 
 const getAllPlaces = async (req, res) => {
-  res.json(await PlaceModal.find());
+  try {
+    const places = await PlaceModal.find();
+    res.json(places);
+  } catch (err) {
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 };
 
 const deletePlace = async (req, res) => {
-  const { id } = req.params;
-  const deletedPlace = await PlaceModal.findByIdAndDelete(id);
-  const findBooking = await BookingModel.find({ place: id });
-  if (findBooking) {
-    await BookingModel.deleteMany({ place: id });
+  try {
+    const { id } = req.params;
+    const deletedPlace = await PlaceModal.findByIdAndDelete(id);
+    const findBooking = await BookingModel.find({ place: id });
+    if (findBooking.length > 0) {
+      await BookingModel.deleteMany({ place: id });
+    }
+    res.json(deletedPlace);
+  } catch (err) {
+    res.status(500).json({ error: "Internal Server Error" });
   }
-  res.json(deletedPlace);
 };
 
 module.exports = {
